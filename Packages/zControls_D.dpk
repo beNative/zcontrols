@@ -44,6 +44,11 @@ contains
   zObjInspList in '..\Source\zObjInspList.pas',
   zRecList in '..\Source\zRecList.pas',
   zStringsDialog in '..\Source\zStringsDialog.pas' {StringsDialog},
+  FloatConv in '..\Source\FloatConv\FloatConv.pas',
+  FloatConv.Single in '..\Source\FloatConv\FloatConv.Single.pas',
+  FloatConv.Double in '..\Source\FloatConv\FloatConv.Double.pas',
+  FloatConv.Extended in '..\Source\FloatConv\FloatConv.Extended.pas',
   zUtils in '..\Source\zUtils.pas';
 
 end.
+
