@@ -732,7 +732,8 @@ implementation
 uses
   zObjInspList,
   zStringsDialog,
-  zGraphicDialog;
+  zGraphicDialog,
+  zCollectionEditor;
 
 resourcestring
   SDialogDerivedErr = 'Dialog must be derived from TCommonDialog or TzInspDialog';
@@ -4060,7 +4061,9 @@ begin
         if PItem.Value.AsObject is TStrings then
           Exit(TStringsDialog)
         else if PItem.Value.AsObject is TGraphic then
-          Exit(TGraphicDialog);
+          Exit(TGraphicDialog)
+        else if PItem.Value.AsObject is TCollection then
+          Result := TzCollectionEditorDialog
       end;
     vtColor: Result := TColorDialog;
     vtFont: Result := TFontDialog;
@@ -4431,10 +4434,15 @@ begin
         if PItem.Value.AsObject is TStrings then
           Exit(True)
         else if PItem.Value.AsObject is TGraphic then
-          Exit(True);
-
+          Exit(True)
+        else if PItem.Value.AsObject is TCollection then
+          Result := True;
       end;
-    vtColor, vtFont, vtIcon:
+      vtString:
+      begin
+        Result := True;
+      end;
+      vtColor, vtFont, vtIcon:
       begin
         Exit(True);
       end;
