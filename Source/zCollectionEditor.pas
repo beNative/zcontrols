@@ -222,13 +222,13 @@ var
   I  : Integer;
 //  S  : string;
 //  V  : TValue;
-  O  : TObject;
+  //O  : TObject;
 begin
   for I := 0 to lvCollectionItems.Items.Count - 1 do
   begin
     if lvCollectionItems.Items[I].Selected then
     begin
-      O := FCollection.Items[I];
+      //O := FCollection.Items[I];
 
 
       // TODO : does not work anymore!

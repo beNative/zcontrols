@@ -5,9 +5,10 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, zBase, zObjInspector, Vcl.StdCtrls,
-  Vcl.Buttons, Vcl.ExtCtrls, Vcl.Styles, Vcl.Themes, Vcl.Grids, Vcl.ValEdit,
-  Vcl.Menus;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Buttons, Vcl.ExtCtrls,
+  Vcl.Styles, Vcl.Themes, Vcl.Grids, Vcl.ValEdit, Vcl.Menus,
+
+  zObjInspector, zObjInspTypes, zBase;
 
 type
   TMain = class(TForm)

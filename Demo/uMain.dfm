@@ -42,14 +42,12 @@ object Main: TMain
     ShowGridLines = False
     GridColor = clBlack
     SplitterColor = clGray
-    ReadOnlyColor = clGrayText
     FixedSplitter = False
     ReadOnly = False
     TrackChange = False
     GutterWidth = 12
     ShowItemHint = True
     SortByCategory = False
-    SplitterPos = 100
     HeaderPropText = 'Property'
     HeaderValueText = 'Value'
     OnBeforeAddItem = zObjectInspector1BeforeAddItem
