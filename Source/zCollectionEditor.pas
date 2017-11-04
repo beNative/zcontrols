@@ -24,7 +24,7 @@ uses
   Winapi.Windows,
   Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.ActnList,
   Vcl.Controls, Vcl.Forms, Vcl.Menus,
-
+  zObjInspTypes,
   zObjInspector, System.ImageList, Vcl.ImgList, Vcl.ToolWin;
 
 type
@@ -263,14 +263,10 @@ begin
     begin
       FInspector.Component :=
         TPersistent(lvCollectionItems.Items[lvCollectionItems.ItemIndex].Data);
-//      FInspector.Add(
-//        TPersistent(lvCollectionItems.Items[lvCollectionItems.ItemIndex].Data)
-//      );
-
       for I := 0 to FInspector.Items.Count - 1 do
       begin
-//        if FInspector.Items[I].Expandable = mieYes then
-//          FInspector.Items[I].Expand;
+        if FInspector.Items.Items[I].HasChild then
+          FInspector.ExpandItem(FInspector.Items.Items[I]);
       end;
     end;
   finally
