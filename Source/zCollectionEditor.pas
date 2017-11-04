@@ -19,13 +19,13 @@ unit zCollectionEditor;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.TypInfo, System.ImageList,
+  System.SysUtils, System.Classes, System.TypInfo,
   System.Actions, System.Rtti,
   Winapi.Windows,
-  Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.ActnList, Vcl.ImgList, Vcl.ToolWin,
+  Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.ActnList,
   Vcl.Controls, Vcl.Forms, Vcl.Menus,
 
-  zObjInspector;
+  zObjInspector, System.ImageList, Vcl.ImgList, Vcl.ToolWin;
 
 type
   TzCollectionEditorDialog = class(TzInspDialog)
@@ -89,7 +89,6 @@ type
   private
     FCollection : TCollection;
     FInspector  : TzObjectInspector;
-    FContext    : TRttiContext;
 
     function GetActiveItem: TCollectionItem;
 
@@ -109,7 +108,7 @@ implementation
 {$R *.dfm}
 
 uses
-  DDuce.Reflect, DDuce.Logger;
+  DDuce.Logger;
 
 {$REGION 'construction and destruction'}
 {$ENDREGION}
@@ -221,8 +220,8 @@ function TzCollectionEditorDialog.FInspectorItemSetValue(Sender: TControl;
   PItem: PPropItem; var NewValue: TValue): Boolean;
 var
   I  : Integer;
-  S  : string;
-  V  : TValue;
+//  S  : string;
+//  V  : TValue;
   O  : TObject;
 begin
   for I := 0 to lvCollectionItems.Items.Count - 1 do

@@ -745,6 +745,10 @@ const
   PlusMinWidth = 10;
   ColorWidth = 13;
 
+  PRIMARY_TYPES : set of TTypeKind = [tkInteger, tkChar, tkFloat,
+    tkString, tkWChar, tkLString, tkWString, tkVariant, tkInt64, tkUString,
+    tkPointer];
+
 const
   cDefaultMaxDigits = 2;
   cDefaultExpPrecision = 6;
@@ -1620,7 +1624,8 @@ var
               else
                 FCircularLinkProps.Add(LQName);
             FPropInstance.Add(LQName, LInstance);
-          end else if (PItem^.IsSet) then
+          end
+          else if (LProp.Visibility = mvPublished) and (PItem.IsSet) then // TS
           begin
             EnumSet;
           end;
@@ -1687,6 +1692,7 @@ var
   var
     P: PPropItem;
   begin
+    Result := False;
     P := AItem^.Parent;
     while Assigned(P) do
     begin
@@ -3588,15 +3594,23 @@ begin
     Exit;
   if FList.ItemIndex < 0 then
     Exit;
-  ObjValue := (FList.Items.Objects[FList.ItemIndex]);
-  if FPropItem.Prop.PropertyType.TypeKind = tkMethod then
+  if FPropItem.Prop.PropertyType.TypeKind in
+    [tkUString, tkUnicodeString, tkString, tkShortString] then
   begin
-    Method.Code := ObjValue;
-    Method.Data := FPropItem.ComponentRoot;
-    NewValue := DefaultValueManager.GetValue(FPropItem, Method);
+    NewValue := FList.Items[FList.ItemIndex];
   end
   else
-    NewValue := DefaultValueManager.GetValue(FPropItem, ObjValue);
+  begin
+    ObjValue := (FList.Items.Objects[FList.ItemIndex]);
+    if FPropItem.Prop.PropertyType.TypeKind = tkMethod then
+    begin
+      Method.Code := ObjValue;
+      Method.Data := FPropItem.ComponentRoot;
+      NewValue := DefaultValueManager.GetValue(FPropItem, Method);
+    end
+    else
+      NewValue := DefaultValueManager.GetValue(FPropItem, ObjValue);
+  end;
   FInspector.DoSetValue(FPropItem, NewValue);
 end;
 
@@ -3897,8 +3911,11 @@ begin
       end;
     vkBack:
       begin
-        inherited;
-        Exit;
+        if not (PropInfo.Prop.PropertyType.TypeKind in PRIMARY_TYPES) then
+        begin
+          inherited;
+          Exit;
+        end;
       end;
   end;
   inherited;
