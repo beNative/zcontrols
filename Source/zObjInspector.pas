@@ -29,7 +29,7 @@ uses
   WinApi.Windows,
   WinApi.Messages,
   System.SysUtils,
-  System.StrUtils,
+
   System.Classes,
   System.Types,
   System.UITypes,
@@ -41,7 +41,7 @@ uses
   Vcl.GraphUtil,
   Vcl.Forms,
   Vcl.StdCtrls,
-  Vcl.ImgList,
+
   Vcl.ExtCtrls,
   Vcl.Dialogs,
   zBase,
@@ -101,7 +101,6 @@ type
     procedure SetPropItem(const Value: PPropItem);
   protected
     procedure InitDialog; virtual;
-    procedure DoCreate; override;
   public
     property PropItem: PPropItem read FPropItem write SetPropItem;
 
@@ -230,6 +229,7 @@ type
     FObjectVisibility: TMemberVisibility;
     FIsSettingComponent: Boolean;
     FValueManager: TzCustomValueManager;
+    FIsDefaultValueManager: Boolean; // created/destroyed by ObjInspector
     FCanvasStack: TzCanvasStack;
     procedure SetComponent(Value: TObject);
     function GetItemOrder(PItem: PPropItem): Integer;
@@ -243,6 +243,10 @@ type
     procedure ComponentChanged; virtual;
     procedure Changed; virtual;
   public
+    constructor Create(AOwner: TComponent; AValueManager: TzCustomValueManager = nil); reintroduce; virtual;
+    destructor Destroy; override;
+    procedure AfterConstruction; override;
+
     procedure Invalidate; override;
     procedure BeginUpdate;
     procedure EndUpdate;
@@ -253,8 +257,6 @@ type
     procedure RegisterPropertyInCategory(const CategoryName: string; const PropertyName: string);
     procedure UpdateProperties(const Repaint: Boolean = False); virtual;
     function IsValueNoDefault(QualifiedName: String; Value: String): Boolean;
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
     property CanvasStack: TzCanvasStack read FCanvasStack;
     property Category: TList<String> read FCategory;
     property Component: TObject read FComponent write SetComponent;
@@ -281,7 +283,7 @@ type
   protected
     procedure CreateParams(var Params: TCreateParams); override;
   public
-    constructor Create(AOwner: TComponent); override;
+    procedure AfterConstruction; override;
     property BorderStyle: TBorderStyle read FBorderStyle write SetBorderStyle;
     property ReadOnly: Boolean read FReadOnly write FReadOnly;
   end;
@@ -305,7 +307,7 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure Paint; override;
   public
-    constructor Create(AOwner: TComponent); override;
+    procedure AfterConstruction; override;
     property SplitterColor: TColor read FSplitterColor write SetSplitterColor;
     property SplitterPos: Integer read FSplitterPos write SetSplitterPos;
     property FixedSplitter: Boolean read FFixedSplitter write FFixedSplitter;
@@ -334,7 +336,7 @@ type
     procedure Paint; override;
     procedure PaintHeader; virtual;
   public
-    constructor Create(AOwner: TComponent); override;
+    procedure AfterConstruction; override;
     property HeaderRect: TRect read GetHeaderRect;
     property HeaderPropRect: TRect read GetHeaderPropRect;
     property HeaderValueRect: TRect read GetHeaderValueRect;
@@ -368,7 +370,7 @@ type
     procedure PaintItem(Index: Integer); virtual;
     procedure CreateParams(var Params: TCreateParams); override;
   public
-    constructor Create(AOwner: TComponent); override;
+    procedure AfterConstruction; override;
     property VisiblePropCount: Integer read GetVisiblePropCount;
   end;
 
@@ -464,6 +466,8 @@ type
     procedure PaintCategory(Index: Integer); virtual;
     procedure PaintItemValue(PItem: PPropItem; Index: Integer); virtual;
   public
+    procedure AfterConstruction; override;
+
     function SetPropValue(PropItem: PPropItem; var Value: TValue): Boolean;
     /// <summary> Update the Inspector .
     /// </summary>
@@ -475,7 +479,6 @@ type
     procedure CollapseAll;
     function ExpandItem(PItem: PPropItem): Boolean;
     function CollapseItem(PItem: PPropItem): Boolean;
-    constructor Create(AOwner: TComponent); override;
     property SelectedIndex: Integer read FSelectedIndex;
     property PlusMinBtnRect[Index: Integer]: TRect read GetPlusMinBtnRect;
     property PropTextRect[Index: Integer]: TRect read GetPropTextRect;
@@ -587,10 +590,7 @@ type
 implementation
 
 uses
-  zObjInspList,
-  zStringsDialog,
-  zGraphicDialog,
-  zCollectionEditor;
+  zObjInspList;
 
 resourcestring
   SDialogDerivedErr = 'Dialog must be derived from TCommonDialog or TzInspDialog';
@@ -612,9 +612,16 @@ type
 
 { TzObjInspectorBase }
 
-constructor TzObjInspectorBase.Create(AOwner: TComponent);
+constructor TzObjInspectorBase.Create(AOwner: TComponent;
+  AValueManager: TzCustomValueManager);
 begin
-  inherited;
+  inherited Create(AOwner);
+  FValueManager := AValueManager;
+end;
+
+procedure TzObjInspectorBase.AfterConstruction;
+begin
+  inherited AfterConstruction;
   FLockUpdate := False;
   FCanvasStack := TzCanvasStack.Create();
   ControlStyle := ControlStyle - [csAcceptsControls];
@@ -633,13 +640,16 @@ begin
   FOnBeforeAddItem := nil;
   FComponent := nil;
   FObjectVisibility := mvPublic;
-  FValueManager := TzCustomValueManager.Create;
+  if not Assigned(FValueManager) then
+  begin
+    FIsDefaultValueManager := True;
+    FValueManager := TzCustomValueManager.Create;
+  end;
 end;
 
 destructor TzObjInspectorBase.Destroy;
 begin
   FCanvasStack.Free;
-  FValueManager.Free;
   if Assigned(FExpandedList) then
     FreeAndNil(FExpandedList);
   if Assigned(FPropInstance) then
@@ -659,6 +669,10 @@ begin
   if Assigned(FDefPropValue) then
     FreeAndNil(FDefPropValue);
   FContext.Free;
+  if FIsDefaultValueManager then
+    FValueManager.Free
+  else
+    FValueManager := nil;
   inherited;
 end;
 
@@ -894,8 +908,7 @@ var
             Exit(True);
           // Circular link !
         end;
-
-  end;
+    end;
 
   procedure EnumProps(AInstance: TObject; AParent, ACategory: PPropItem; QualifiedName, QualifiedType: string);
   var
@@ -1066,7 +1079,7 @@ end;
 
 procedure TzObjInspectorBase.UpdateProperties(const Repaint: Boolean);
 begin
-
+//
 end;
 
 procedure TzObjInspectorBase.UpdateVisibleItems;
@@ -1138,9 +1151,9 @@ end;
 
 { TzObjInspectorList }
 
-constructor TzObjInspectorList.Create(AOwner: TComponent);
+procedure TzObjInspectorList.AfterConstruction;
 begin
-  inherited;
+  inherited AfterConstruction;
   Width := 300;
   Height := 300;
   FBorderStyle := bsSingle;
@@ -1166,9 +1179,9 @@ end;
 
 { TzObjInspectorSizing }
 
-constructor TzObjInspectorSizing.Create(AOwner: TComponent);
+procedure TzObjInspectorSizing.AfterConstruction;
 begin
-  inherited;
+  inherited AfterConstruction;
   FOnSplitterPosChanged := nil;
   Color := clWhite;
   FFixedSplitter := False;
@@ -1281,9 +1294,9 @@ end;
 
 { TzObjInspectorHeader }
 
-constructor TzObjInspectorHeader.Create(AOwner: TComponent);
+procedure TzObjInspectorHeader.AfterConstruction;
 begin
-  inherited;
+  inherited AfterConstruction;
   FOnHeaderMouseDown := nil;
   FHeaderPressed := False;
   FHeaderPropPressed := False;
@@ -1329,7 +1342,6 @@ begin
   StyleServices.DrawElement(Canvas.Handle, LDetails, HeaderPropRect);
   R := HeaderPropRect;
   Inc(R.Left, 10);
-  // StyleServices.DrawText(Canvas.Handle, LDetails, FHeaderPropText, R, DT_LEFT or DT_SINGLELINE or DT_VCENTER, 0);
   StyleServices.DrawText(Canvas.Handle, LDetails, FHeaderPropText, R, [tfLeft, tfSingleLine, tfVerticalCenter]);
   if FHeaderValuePressed then
     LDetails := StyleServices.GetElementDetails(thHeaderItemPressed)
@@ -1339,7 +1351,6 @@ begin
   StyleServices.DrawElement(Canvas.Handle, LDetails, HeaderValueRect);
   R := HeaderValueRect;
   Inc(R.Left, 10);
-  // StyleServices.DrawText(Canvas.Handle, LDetails, FHeaderValueText, R, DT_LEFT or DT_SINGLELINE or DT_VCENTER, 0);
   StyleServices.DrawText(Canvas.Handle, LDetails, FHeaderValueText, R, [tfLeft, tfSingleLine, tfVerticalCenter]);
 
   FCanvasStack.Pop;
@@ -1423,17 +1434,17 @@ end;
 
 { TzScrollObjInspectorList }
 
+procedure TzScrollObjInspectorList.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FPrevScrollPos := 0;
+end;
+
 procedure TzScrollObjInspectorList.CMFONTCHANGED(var Message: TMessage);
 begin
   inherited;
   Canvas.Font.Assign(Font);
   FItemHeight := Canvas.TextHeight('WA') + 4; // 17;
-end;
-
-constructor TzScrollObjInspectorList.Create(AOwner: TComponent);
-begin
-  inherited;
-  FPrevScrollPos := 0;
 end;
 
 procedure TzScrollObjInspectorList.CreateParams(var Params: TCreateParams);
@@ -1632,7 +1643,6 @@ var
       if Assigned(pHeaderRect) then
       VertScrollChilds(pHeaderRect); // Manually Scroll Childs .
     }
-
   end;
 
 begin
@@ -1705,26 +1715,9 @@ end;
 
 { TzCustomObjInspector }
 
-function TzCustomObjInspector.CanDrawChevron(Index: Integer): Boolean;
-var
-  PItem: PPropItem;
-  iOrd: Integer;
+procedure TzCustomObjInspector.AfterConstruction;
 begin
-  Result := False;
-  if (Index > -1) and (Index = FSelectedIndex) then
-  begin
-    PItem := FVisibleItems.Items[Index];
-    iOrd := GetItemOrder(PItem);
-    if iOrd > 0 then
-      Exit(True)
-    else if (iOrd = 0) and not(PItem.HasChild) then
-      Exit(True);
-  end;
-end;
-
-constructor TzCustomObjInspector.Create(AOwner: TComponent);
-begin
-  inherited;
+  inherited AfterConstruction;
   if csDesigning in ComponentState then
     Component := Self;
   FAllowSearch := True;
@@ -1768,12 +1761,30 @@ begin
   FPropInspEdit.BorderStyle := bsNone;
 end;
 
+function TzCustomObjInspector.CanDrawChevron(Index: Integer): Boolean;
+var
+  PItem: PPropItem;
+  iOrd: Integer;
+begin
+  Result := False;
+  if (Index > -1) and (Index = FSelectedIndex) then
+  begin
+    PItem := FVisibleItems.Items[Index];
+    iOrd := GetItemOrder(PItem);
+    if iOrd > 0 then
+      Exit(True)
+    else if (iOrd = 0) and not(PItem.HasChild) then
+      Exit(True);
+  end;
+end;
+
 procedure TzCustomObjInspector.CreateWnd;
 begin
   inherited;
   FSelectedIndex := -1;
-  if not(csDesigning in ComponentState) then
-    RegisterHotKey(Handle, 0, 0, VK_TAB);
+  // by TS: will cause to capture VK_TAB system-wide
+  //if not(csDesigning in ComponentState) then
+//    RegisterHotKey(Handle, 0, 0, VK_TAB);
 end;
 
 function TzCustomObjInspector.DoCollapseItem(PItem: PPropItem): Boolean;
@@ -2820,6 +2831,9 @@ begin
   end;
 end;
 
+{ TS: does not get called because we disabled registration of TAB hotkey, which
+  has sideeffects. }
+
 procedure TzCustomObjInspector.WMHotKey(var Msg: TWMHotKey);
 var
   LForm: TCustomForm;
@@ -2829,20 +2843,25 @@ begin
   if Assigned(LForm) then
   begin
     if FAllowSearch and (Msg.HotKey = 0) then
+    begin
       if Assigned(LForm.ActiveControl) then
-        if (WinInWin(LForm.ActiveControl.Handle, Handle)) then
+      begin
+        if WinInWin(LForm.ActiveControl.Handle, Handle) then
         begin { ActiveControl must be Self or childs of Self ! }
           if GetCaretWin = Handle then // searching
           begin
             FSearchText := '';
             UpdateEditControl; // move back to Edit
-          end else if DoSelectCaret(FSelectedIndex) then // start search
+          end
+          else if DoSelectCaret(FSelectedIndex) then // start search
             Exit;
         end;
+      end;
+    end;
     { Translate the Tab to the parent to
       select controls that have TabStop !
     }
-    // LForm.Perform(CM_DialogKey, VK_TAB, 0); // I think we don't need to process Tab like delphi IDE...
+//     LForm.Perform(CM_DialogKey, VK_TAB, 0); // I think we don't need to process Tab like delphi IDE...
   end;
 end;
 
@@ -3558,11 +3577,6 @@ begin
 end;
 
 { TzInspDialog }
-
-procedure TzInspDialog.DoCreate;
-begin
-  inherited;
-end;
 
 procedure TzInspDialog.InitDialog;
 begin
