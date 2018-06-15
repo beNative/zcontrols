@@ -29,7 +29,7 @@ uses
   WinApi.Windows,
   WinApi.Messages,
   System.SysUtils,
-
+  System.StrUtils,
   System.Classes,
   System.Types,
   System.UITypes,
@@ -41,7 +41,7 @@ uses
   Vcl.GraphUtil,
   Vcl.Forms,
   Vcl.StdCtrls,
-
+  Vcl.ImgList,
   Vcl.ExtCtrls,
   Vcl.Dialogs,
   zBase,
@@ -231,6 +231,7 @@ type
     FValueManager: TzCustomValueManager;
     FIsDefaultValueManager: Boolean; // created/destroyed by ObjInspector
     FCanvasStack: TzCanvasStack;
+    FShowEventProperties: Boolean;
     procedure SetComponent(Value: TObject);
     function GetItemOrder(PItem: PPropItem): Integer;
     procedure SetSortByCategory(const Value: Boolean);
@@ -272,6 +273,7 @@ type
     property ObjectVisibility: TMemberVisibility read FObjectVisibility write SetObjectVisibility default mvPublic;
     property FloatPreference: TzFloatPreference read GetFloatPreference write SetFloatPreference;
     property OnAutoExpandItemOnInit: TPropItemEvent read FOnAutoExpandItemOnInit write FOnAutoExpandItemOnInit;
+    property ShowEventProperties: Boolean read FShowEventProperties write FShowEventProperties;
   end;
 
   TzObjInspectorList = class(TzObjInspectorBase)
@@ -557,6 +559,7 @@ type
     property HeaderValueText;
     property ObjectVisibility;
     property FloatPreference;
+    property ShowEventProperties;
     property OnClick;
     property OnContextPopup;
     property OnDragDrop;
@@ -590,7 +593,10 @@ type
 implementation
 
 uses
-  zObjInspList;
+  zObjInspList,
+  zStringsDialog,
+  zGraphicDialog,
+  zCollectionEditor;
 
 resourcestring
   SDialogDerivedErr = 'Dialog must be derived from TCommonDialog or TzInspDialog';
@@ -1022,6 +1028,10 @@ var
           PItem^.Visible := False
         else
           PItem^.Visible := AParent = nil;
+
+        if (LProp.PropertyType is TRttiMethodType) and not FShowEventProperties then
+          Allow := False;
+
         if Assigned(FOnBeforeAddItem) then
           Allow := FOnBeforeAddItem(Self, PItem);
         if not Allow then
@@ -1782,9 +1792,8 @@ procedure TzCustomObjInspector.CreateWnd;
 begin
   inherited;
   FSelectedIndex := -1;
-  // by TS: will cause to capture VK_TAB system-wide
-  //if not(csDesigning in ComponentState) then
-//    RegisterHotKey(Handle, 0, 0, VK_TAB);
+  if not(csDesigning in ComponentState) then
+    RegisterHotKey(Handle, 0, 0, VK_TAB);
 end;
 
 function TzCustomObjInspector.DoCollapseItem(PItem: PPropItem): Boolean;
@@ -2831,9 +2840,6 @@ begin
   end;
 end;
 
-{ TS: does not get called because we disabled registration of TAB hotkey, which
-  has sideeffects. }
-
 procedure TzCustomObjInspector.WMHotKey(var Msg: TWMHotKey);
 var
   LForm: TCustomForm;
@@ -2843,25 +2849,20 @@ begin
   if Assigned(LForm) then
   begin
     if FAllowSearch and (Msg.HotKey = 0) then
-    begin
       if Assigned(LForm.ActiveControl) then
-      begin
-        if WinInWin(LForm.ActiveControl.Handle, Handle) then
+        if (WinInWin(LForm.ActiveControl.Handle, Handle)) then
         begin { ActiveControl must be Self or childs of Self ! }
           if GetCaretWin = Handle then // searching
           begin
             FSearchText := '';
             UpdateEditControl; // move back to Edit
-          end
-          else if DoSelectCaret(FSelectedIndex) then // start search
+          end else if DoSelectCaret(FSelectedIndex) then // start search
             Exit;
         end;
-      end;
-    end;
     { Translate the Tab to the parent to
       select controls that have TabStop !
     }
-//     LForm.Perform(CM_DialogKey, VK_TAB, 0); // I think we don't need to process Tab like delphi IDE...
+    // LForm.Perform(CM_DialogKey, VK_TAB, 0); // I think we don't need to process Tab like delphi IDE...
   end;
 end;
 

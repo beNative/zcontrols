@@ -25,7 +25,7 @@ unit zObjInspDialogs;
 
 interface
 
-uses Vcl.Forms, zObjInspTypes;
+uses Vcl.Forms, zObjInspTypes, zObjInspector;
 
 type
   TzInspDialog = class(TForm)
