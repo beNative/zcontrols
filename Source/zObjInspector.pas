@@ -1802,8 +1802,9 @@ procedure TzCustomObjInspector.CreateWnd;
 begin
   inherited;
   FSelectedIndex := -1;
-  if not(csDesigning in ComponentState) then
-    RegisterHotKey(Handle, 0, 0, VK_TAB);
+  // by TS: will cause to capture VK_TAB system-wide
+  //if not(csDesigning in ComponentState) then
+//    RegisterHotKey(Handle, 0, 0, VK_TAB);
 end;
 
 function TzCustomObjInspector.DoCollapseItem(PItem: PPropItem): Boolean;
@@ -2850,6 +2851,9 @@ begin
   end;
 end;
 
+{ TS: does not get called because we disabled registration of TAB hotkey, which
+  has sideeffects. }
+
 procedure TzCustomObjInspector.WMHotKey(var Msg: TWMHotKey);
 var
   LForm: TCustomForm;
@@ -2859,16 +2863,21 @@ begin
   if Assigned(LForm) then
   begin
     if FAllowSearch and (Msg.HotKey = 0) then
+    begin
       if Assigned(LForm.ActiveControl) then
-        if (WinInWin(LForm.ActiveControl.Handle, Handle)) then
+      begin
+        if WinInWin(LForm.ActiveControl.Handle, Handle) then
         begin { ActiveControl must be Self or childs of Self ! }
           if GetCaretWin = Handle then // searching
           begin
             FSearchText := '';
             UpdateEditControl; // move back to Edit
-          end else if DoSelectCaret(FSelectedIndex) then // start search
+          end
+          else if DoSelectCaret(FSelectedIndex) then // start search
             Exit;
         end;
+      end;
+    end;
     { Translate the Tab to the parent to
       select controls that have TabStop !
     }
