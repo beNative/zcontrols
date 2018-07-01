@@ -35,18 +35,22 @@ requires
   vcl;
 
 contains
+  FloatConv in '..\Source\FloatConv\FloatConv.pas',
+  FloatConv.Double in '..\Source\FloatConv\FloatConv.Double.pas',
+  FloatConv.Extended in '..\Source\FloatConv\FloatConv.Extended.pas',
+  FloatConv.Single in '..\Source\FloatConv\FloatConv.Single.pas',
   zBase in '..\Source\zBase.pas',
   zCanvasStack in '..\Source\zCanvasStack.pas',
+  zCollectionEditor in '..\Source\zCollectionEditor.pas' {zCollectionEditorDialog},
+  zControlsReg in '..\Source\zControlsReg.pas',
   zGraphicDialog in '..\Source\zGraphicDialog.pas' {GraphicDialog},
   zObjInspDialogs in '..\Source\zObjInspDialogs.pas',
   zObjInspector in '..\Source\zObjInspector.pas',
   zObjInspList in '..\Source\zObjInspList.pas',
+  zObjInspTypes in '..\Source\zObjInspTypes.pas',
   zRecList in '..\Source\zRecList.pas',
   zStringsDialog in '..\Source\zStringsDialog.pas' {StringsDialog},
   zUtils in '..\Source\zUtils.pas',
-  FloatConv in '..\Source\FloatConv\FloatConv.pas',
-  FloatConv.Double in '..\Source\FloatConv\FloatConv.Double.pas',
-  FloatConv.Extended in '..\Source\FloatConv\FloatConv.Extended.pas',
-  FloatConv.Single in '..\Source\FloatConv\FloatConv.Single.pas';
+  zValueManager in '..\Source\zValueManager.pas';
 
 end.

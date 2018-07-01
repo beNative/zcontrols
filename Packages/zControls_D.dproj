@@ -5,7 +5,7 @@
         <ProjectVersion>18.2</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>1</TargetedPlatforms>
         <AppType>Package</AppType>
@@ -91,24 +91,7 @@
         </DelphiCompile>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
-        <DCCReference Include="..\Source\zBase.pas"/>
-        <DCCReference Include="..\Source\zCanvasStack.pas"/>
-        <DCCReference Include="..\Source\zControlsReg.pas"/>
-        <DCCReference Include="..\Source\zGraphicDialog.pas">
-            <Form>GraphicDialog</Form>
-        </DCCReference>
-        <DCCReference Include="..\Source\zObjInspDialogs.pas"/>
-        <DCCReference Include="..\Source\zObjInspector.pas"/>
-        <DCCReference Include="..\Source\zObjInspList.pas"/>
-        <DCCReference Include="..\Source\zRecList.pas"/>
-        <DCCReference Include="..\Source\zStringsDialog.pas">
-            <Form>StringsDialog</Form>
-        </DCCReference>
-        <DCCReference Include="..\Source\FloatConv\FloatConv.pas"/>
-        <DCCReference Include="..\Source\FloatConv\FloatConv.Single.pas"/>
-        <DCCReference Include="..\Source\FloatConv\FloatConv.Double.pas"/>
-        <DCCReference Include="..\Source\FloatConv\FloatConv.Extended.pas"/>
-        <DCCReference Include="..\Source\zUtils.pas"/>
+        <DCCReference Include="zControls_R.dcp"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -176,12 +159,6 @@
                 </Source>
             </Delphi.Personality>
             <Deployment Version="3">
-                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\18.0\Bpl\zControls_D.bpl" Configuration="Debug" Class="ProjectOutput">
-                    <Platform Name="Win32">
-                        <RemoteName>zControls_D.bpl</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="OSX32">
                         <Overwrite>true</Overwrite>
@@ -199,6 +176,12 @@
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgsqlite3.dylib" Class="DependencyModule">
                     <Platform Name="OSX32">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\19.0\Bpl\zControls_D.bpl" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>zControls_D.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

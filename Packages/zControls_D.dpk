@@ -32,23 +32,8 @@ package zControls_D;
 
 requires
   rtl,
-  vcl;
-
-contains
-  zBase in '..\Source\zBase.pas',
-  zCanvasStack in '..\Source\zCanvasStack.pas',
-  zControlsReg in '..\Source\zControlsReg.pas',
-  zGraphicDialog in '..\Source\zGraphicDialog.pas' {GraphicDialog},
-  zObjInspDialogs in '..\Source\zObjInspDialogs.pas',
-  zObjInspector in '..\Source\zObjInspector.pas',
-  zObjInspList in '..\Source\zObjInspList.pas',
-  zRecList in '..\Source\zRecList.pas',
-  zStringsDialog in '..\Source\zStringsDialog.pas' {StringsDialog},
-  FloatConv in '..\Source\FloatConv\FloatConv.pas',
-  FloatConv.Single in '..\Source\FloatConv\FloatConv.Single.pas',
-  FloatConv.Double in '..\Source\FloatConv\FloatConv.Double.pas',
-  FloatConv.Extended in '..\Source\FloatConv\FloatConv.Extended.pas',
-  zUtils in '..\Source\zUtils.pas';
+  vcl,
+  zControls_R;
 
 end.
 

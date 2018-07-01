@@ -107,9 +107,6 @@ implementation
 
 {$R *.dfm}
 
-uses
-  DDuce.Logger;
-
 {$REGION 'construction and destruction'}
 {$ENDREGION}
 
