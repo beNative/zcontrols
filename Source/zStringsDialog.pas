@@ -10,7 +10,7 @@
 // The Original Code is zStringsDialog.pas.
 //
 // The Initial Developer of the Original Code is Mahdi Safsafi [SMP3].
-// Portions created by Mahdi Safsafi . are Copyright (C) 2013-2016 Mahdi Safsafi .
+// Portions created by Mahdi Safsafi. are Copyright (C) 2013-2019 Mahdi Safsafi.
 // All Rights Reserved.
 //
 // **************************************************************************************************
@@ -20,8 +20,8 @@ unit zStringsDialog;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
-  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
   zObjInspector;
 
 type

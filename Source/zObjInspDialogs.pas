@@ -10,7 +10,7 @@
 // The Original Code is zObjInspDialogs.pas.
 //
 // The Initial Developer of the Original Code is Mahdi Safsafi [SMP3].
-// Portions created by Mahdi Safsafi . are Copyright (C) 2013-2017 Mahdi Safsafi .
+// Portions created by Mahdi Safsafi. are Copyright (C) 2013-2019 Mahdi Safsafi.
 // All Rights Reserved.
 //
 // **************************************************************************************************
@@ -25,7 +25,7 @@ unit zObjInspDialogs;
 
 interface
 
-uses Vcl.Forms, zObjInspTypes, zObjInspector;
+uses Vcl.Forms, zObjInspector, zObjInspTypes;
 
 type
   TzInspDialog = class(TForm)
@@ -48,5 +48,3 @@ begin
 end;
 
 end.
-
-

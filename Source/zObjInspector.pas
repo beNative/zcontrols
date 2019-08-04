@@ -82,6 +82,7 @@ type
   TzInspDialog = class;
 
   TPropItemEvent = function(Sender: TControl; PItem: PPropItem): Boolean of object;
+  TGetItemFriendlyNameEvent = function(Sender: TControl; PItem: PPropItem): string of object;
   TSplitterPosChangedEvent = procedure(Sender: TControl; var Pos: Integer) of object;
   THeaderMouseDownEvent = procedure(Sender: TControl; Item: THeaderItem; X, Y: Integer) of object;
   TItemSetValue = function(Sender: TControl; PItem: PPropItem; var NewValue: TValue): Boolean of object;
@@ -142,6 +143,7 @@ type
     FList: TzPopupListBox;
     FTxtChanged: Boolean;
     FDefSelIndex: Integer;
+    procedure WMSETFOCUS(var Msg: TWMSetFocus); message WM_SETFOCUS;
     procedure CMVISIBLECHANGED(var Message: TMessage); message CM_VISIBLECHANGED;
     procedure WMKEYDOWN(var Message: TWMKEYDOWN); message WM_KEYDOWN;
     procedure WMLButtonDown(var Message: TWMLButtonDown); message WM_LBUTTONDOWN;
@@ -186,6 +188,7 @@ type
     property Tag;
     property Top;
     property Width;
+
   end;
 
   TzObjectInspectorStyleHook = class(TScrollingStyleHook)
@@ -381,6 +384,7 @@ type
   TzCustomObjInspector = class(TzScrollObjInspectorList)
   private
     FPropInspEdit: TzPropInspEdit;
+    FUnRegisterKeys: Boolean;
     FSelectedIndex: Integer;
     FSepTxtDis: Integer;
     FClickTime: Integer;
@@ -407,6 +411,7 @@ type
     FOnItemSetValue: TItemSetValue;
     FOnExpandItem: TPropItemEvent;
     FOnCollapseItem: TPropItemEvent;
+    FOnGetItemFriendlyName: TGetItemFriendlyNameEvent;
     FPropsNeedHint: Boolean;
     FValuesNeedHint: Boolean;
     FPrevHintIndex: Integer;
@@ -450,6 +455,8 @@ type
     procedure SetAllowSearch(const Value: Boolean);
     procedure SetReadOnlyColor(const Value: TColor);
   protected
+    procedure RegisterKeys;
+    procedure UnRegisterKeys;
     function DoMouseWheelDown(Shift: TShiftState; MousePos: TPoint): Boolean; override;
     function DoMouseWheelUp(Shift: TShiftState; MousePos: TPoint): Boolean; override;
     procedure CreateWnd; override;
@@ -469,6 +476,7 @@ type
     procedure PaintItem(Index: Integer); override;
     procedure PaintCategory(Index: Integer); virtual;
     procedure PaintItemValue(PItem: PPropItem; Index: Integer); virtual;
+    procedure ChangeScale(M, D: Integer{$IF CompilerVersion >= 31}; isDpiChange: Boolean{$ENDIF}); override;
   public
     procedure AfterConstruction; override;
 
@@ -511,11 +519,14 @@ type
     property OnGetItemReadOnly: TPropItemEvent read FOnGetItemReadOnly write FOnGetItemReadOnly;
     property OnItemSetValue: TItemSetValue read FOnItemSetValue write FOnItemSetValue;
     property OnCollapseItem: TPropItemEvent read FOnCollapseItem write FOnCollapseItem;
+    property OnGetItemFriendlyName: TGetItemFriendlyNameEvent
+      read FOnGetItemFriendlyName write FOnGetItemFriendlyName;
     property OnExpandItem: TPropItemEvent read FOnExpandItem write FOnExpandItem;
     property OnSelectItem: TPropItemEvent read FOnSelectItem write FOnSelectItem;
     property AllowSearch: Boolean read FAllowSearch write SetAllowSearch;
   end;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidOSX32)]
   TzObjectInspector = class(TzCustomObjInspector)
   strict private
     class constructor Create;
@@ -590,6 +601,7 @@ type
     property OnCollapseItem;
     property OnExpandItem;
     property OnSelectItem;
+    property OnGetItemFriendlyName;
   end;
 
 implementation
@@ -606,17 +618,24 @@ resourcestring
   SOutOfRangeErr = 'Index out of range.';
   SSelNonVisibleItemErr = 'Could not select a non visible item.';
 
+Var
+  PlusMinWidth: Integer = 10;
+  ColorWidth: Integer = 13;
+  PropInspBtnWidth: Integer = 17;
+  PropInspBtnArrowSize: Integer = 3;
+
 const
-  cPlusMinWidth = 10;
+  cDefaultMaxDigits    = 2;
+  cDefaultExpPrecision = 6;
   cPrimaryTypes : set of TTypeKind = [tkInteger, tkChar, tkFloat,
     tkString, tkWChar, tkLString, tkWString, tkVariant, tkInt64, tkUString,
     tkPointer];
 
 type
-  InspException = class(Exception);
-  DialogDerivedError = class(InspException);
+  InspException         = class(Exception);
+  DialogDerivedError    = class(InspException);
   InvalidPropValueError = class(InspException);
-  OutOfRangeError = class(InspException);
+  OutOfRangeError       = class(InspException);
 
 { TzObjInspectorBase }
 
@@ -712,10 +731,10 @@ begin
     i := Pos('.', s, i + 1);
   end;
   Dec(Result);
-  if FSortByCategory then
-    Dec(Result);
-  if PItem^.CategoryIndex > -1 then
-    Result := 0;
+  // if FSortByCategory then
+  // Dec(Result);
+  // if FSortByCategory and (PItem^.CategoryIndex <= -1) then
+  // Result := 0;
 end;
 
 procedure TzObjInspectorBase.Invalidate;
@@ -918,7 +937,8 @@ var
             Exit(True);
           // Circular link !
         end;
-    end;
+
+  end;
 
   procedure EnumProps(AInstance: TObject; AParent, ACategory: PPropItem; QualifiedName, QualifiedType: string);
   var
@@ -998,7 +1018,9 @@ var
             L := FCategory.Add(LCategoryName);
             PCategory := AddNewCategory;
           end;
-        end else begin
+        end
+        else
+        begin
           if FSortByCategory and (AInstance = LComponent) then
           begin
             if FPropsCategory.ContainsKey(LProp.Name) then
@@ -1006,7 +1028,9 @@ var
               L := FPropsCategory[LProp.Name];
               LCategoryName := FCategory[L];
               LQName := LCategoryName + '.' + LQName;
-            end else begin
+            end
+            else
+            begin
               LCategoryName := FDefaultCategoryName;
               L := 0;
               LQName := LCategoryName + '.' + LQName;
@@ -1114,6 +1138,7 @@ var
     for J := 0 to PParent^.Count - 1 do
     begin
       PParent^.Items[J].Visible := Visible;
+      // FVisibleItems.Add(PParent.Items[J]);
     end;
   end;
   procedure MakeVisible(AItem: PPropItem; Visible: Boolean);
@@ -1146,7 +1171,8 @@ begin
     begin
       if FExpandedList.Contains(PItem^.QualifiedName) then
         MakeChildsVisible(PItem, True);
-    end else if (PItem.Count > 0) and FIsSettingComponent and Assigned(FOnAutoExpandItemOnInit) and FOnAutoExpandItemOnInit(Self, PItem) then
+    end
+    else if (PItem.Count > 0) and FIsSettingComponent and Assigned(FOnAutoExpandItemOnInit) and FOnAutoExpandItemOnInit(Self, PItem) then
     begin
       MakeChildsVisible(PItem, True);
     end;
@@ -1653,7 +1679,9 @@ var
         hrgnUpdate := CreateRectRgn(Left, Top, Right, Bottom);
       ScrollWindowEx(Handle, XAmount, YAmount, nil, @LScrollArea, hrgnUpdate, nil, ScrollFlags);
       DeleteObject(hrgnUpdate);
-    end else begin
+    end
+    else
+    begin
       ScrollWindow(Handle, XAmount, YAmount, nil, nil);
       { Update the non validated area . }
       UpdateWindow(Handle);
@@ -1663,6 +1691,7 @@ var
       if Assigned(pHeaderRect) then
       VertScrollChilds(pHeaderRect); // Manually Scroll Childs .
     }
+
   end;
 
 begin
@@ -1697,7 +1726,9 @@ begin
           FPrevScrollPos := Message.Pos;
           Invalidate;
           Exit; // must exit
-        end else begin
+        end
+        else
+        begin
           FSI.nPos := FSI.nTrackPos;
         end;
       end;
@@ -1740,6 +1771,7 @@ begin
   inherited AfterConstruction;
   if csDesigning in ComponentState then
     Component := Self;
+  FUnRegisterKeys := False;
   FAllowSearch := True;
   FShowItemHint := True;
   FIsItemHint := False;
@@ -1802,9 +1834,6 @@ procedure TzCustomObjInspector.CreateWnd;
 begin
   inherited;
   FSelectedIndex := -1;
-  // by TS: will cause to capture VK_TAB system-wide
-  //if not(csDesigning in ComponentState) then
-//    RegisterHotKey(Handle, 0, 0, VK_TAB);
 end;
 
 function TzCustomObjInspector.DoCollapseItem(PItem: PPropItem): Boolean;
@@ -2062,11 +2091,11 @@ begin
   Result := TRect.Empty;
   POrd := GetItemOrder(FVisibleItems.Items[Index]);
   pOrdPos := (POrd * FGutterWidth) + FGutterWidth;
-  X := (pOrdPos - cPlusMinWidth) - 3;
+  X := (pOrdPos - PlusMinWidth) - 3;
   Y := GetItemTop(IndexToVirtualIndex(Index));
   R := Rect(0, Y, pOrdPos, Y + FItemHeight);
-  cY := CenterPoint(R).Y - (cPlusMinWidth div 2);
-  Result := Rect(X, cY, X + cPlusMinWidth, cY + cPlusMinWidth);
+  cY := CenterPoint(R).Y - (PlusMinWidth div 2);
+  Result := Rect(X, cY, X + PlusMinWidth, cY + PlusMinWidth);
 end;
 
 function TzCustomObjInspector.GetPropTextRect(Index: Integer): TRect;
@@ -2260,6 +2289,21 @@ begin
 
 end;
 
+procedure TzCustomObjInspector.ChangeScale(M, D: Integer{$IF CompilerVersion >= 31}; isDpiChange: Boolean{$ENDIF});
+begin
+  if (M <> D) then
+  begin
+    FGutterWidth := MulDiv(FGutterWidth, M, D);
+    FSplitterPos := MulDiv(FSplitterPos, M, D);
+    PlusMinWidth := MulDiv(10, M, D);
+    ColorWidth := MulDiv(13, M, D);
+    PropInspBtnWidth := MulDiv(17, M, D);
+    PropInspBtnArrowSize := MulDiv(3, M, D);
+    FSepTxtDis := MulDiv(FSepTxtDis, M, D);
+  end;
+  inherited ChangeScale(M, D{$IF CompilerVersion >= 31}, isDpiChange{$ENDIF});
+end;
+
 procedure TzCustomObjInspector.CMHintShow(var Message: TCMHintShow);
 begin
   if FIsItemHint and FShowItemHint then
@@ -2316,7 +2360,9 @@ begin
       Hint := PItem.ValueName;
       w := Canvas.TextWidth(Hint);
       MustShow := R.Width <= w;
-    end else begin
+    end
+    else
+    begin
       R := PropTextRect[Index];
       Hint := PItem.Name;
       FBoldHint := IsValueNoDefault(PItem^.QualifiedName, PItem^.ValueName);
@@ -2432,22 +2478,28 @@ begin
   pmR := PlusMinBtnRect[Index];
   if PItem^.HasChild and (not FCircularLinkProps.Contains(PItem^.QualifiedName)) then
   begin
-    DrawPlusMinus(Canvas, pmR.Left, pmR.Top, not PItem.Expanded);
+    DrawPlusMinus(Canvas, pmR.Left, pmR.Top, not PItem.Expanded, pmR.Width);
     HasPlusMinus := True;
   end;
   if not PItem^.IsCategory then
   begin
     if CanDrawChevron(Index) then
     begin
-      cY := CenterPoint(pmR).Y - 3;
-      X := pOrdPos - (3 * 2) - 1; // pOrdPos - (>>)-1
+      cY := CenterPoint(pmR).Y - PropInspBtnArrowSize;
+      X := pOrdPos - (PropInspBtnArrowSize * 2) - 1; // pOrdPos - (>>)-1
       // cY:=R.Top;
       if HasPlusMinus then
-        Dec(X, cPlusMinWidth + 2);
-      DrawChevron(Canvas, sdRight, Point(X, cY), 3);
+        Dec(X, PlusMinWidth + 2);
+      Canvas.Pen.Color := clWindowText;
+      if UseStyleColor then
+        Canvas.Pen.Color := StyleServices.GetSystemColor(clWindowText);
+      DrawChevron(Canvas, sdRight, Point(X, cY), PropInspBtnArrowSize);
     end;
 
-    PropName := PItem.Name;
+    if Assigned(OnGetItemFriendlyName) then
+      PropName := OnGetItemFriendlyName(Self, PItem)
+    else
+      PropName := PItem.Name;
 
     X := pOrdPos + 4;
     if FShowGridLines then
@@ -2511,7 +2563,8 @@ begin
     begin
       DrawHorzDotLine(Canvas, HorzDotLeft, Y, Width);
       DrawHorzDotLine(Canvas, HorzDotLeft, Y + FItemHeight, Width);
-    end else if FShowGridLines then
+    end
+    else if FShowGridLines then
     begin
       DrawHorzDotLine(Canvas, FSplitterPos, Y, Width);
     end;
@@ -2544,7 +2597,8 @@ begin
       Canvas.MoveTo(xMax - 2, Y);
       Canvas.LineTo(xMax, Y + 2);
       DYT := 2;
-    end else if PrevPos > pOrdPos then
+    end
+    else if PrevPos > pOrdPos then
     begin
       Canvas.MoveTo(xMax, Y - 2);
       Canvas.LineTo(xMax - 2, Y);
@@ -2616,7 +2670,8 @@ begin
         { Index out of page => Need to scroll ! }
         LSI.nPos := FSelectedIndex;
         DoSetScrollInfo;
-      end else if (FSelectedIndex > GetLastItemIndex - 1) then
+      end
+      else if (FSelectedIndex > GetLastItemIndex - 1) then
       begin
         { Index out of page => Need to scroll ! }
         LSI.nPos := 1 + FSelectedIndex - GetMaxItemCount;
@@ -2783,15 +2838,31 @@ begin
   UpdateEditControl;
 end;
 
-procedure TzCustomObjInspector.UpdateEditControl;
+procedure TzCustomObjInspector.RegisterKeys;
+begin
+  if FAllowSearch and not(csDesigning in ComponentState) then
+    FUnRegisterKeys := RegisterHotKey(Handle, 0, 0, VK_TAB)
+end;
+
+procedure TzCustomObjInspector.UnRegisterKeys;
+begin
+  if not FUnRegisterKeys then
+    Exit;
+  UnregisterHotKey(Handle, 0);
+  FUnRegisterKeys := False;
+end;
+
+procedure TzCustomObjInspector.UpdateEditControl(const SetValue: Boolean);
 var
   PItem: PPropItem;
   BtnWidth: Integer;
   LTxtValRect: TRect;
 begin
-  if Assigned(FPropInspEdit) then
-    if Assigned(FPropInspEdit.Parent) then
-      FPropInspEdit.Visible := False;
+  if Assigned(FPropInspEdit) and Assigned(FPropInspEdit.Parent) then
+  begin
+    FPropInspEdit.Visible := False;
+    FPropInspEdit.PropInfo := nil;
+  end;
   if FSelectedIndex < 0 then
     Exit;
   UpdateSelIndex;
@@ -2813,13 +2884,13 @@ begin
     with ValueRect[FSelectedIndex] do
     begin
       if FValueManager.HasButton(PItem) then
-        BtnWidth := 17
+        BtnWidth := PropInspBtnWidth
       else
         BtnWidth := 0;
       FPropInspEdit.Left := LTxtValRect.Left;
       FPropInspEdit.Top := LTxtValRect.Top + 3;
 
-      FPropInspEdit.Width := Width - BtnWidth;
+      FPropInspEdit.Width := LTxtValRect.Width - BtnWidth;
       FPropInspEdit.Height := Height - 3;
     end;
     FPropInspEdit.Visible := True;
@@ -2918,7 +2989,9 @@ procedure TzCustomObjInspector.WMSETFOCUS(var Msg: TWMSetFocus);
 begin
   inherited;
   if FAllowSearch then
+  begin
     CreateCaret(Handle, 0, 1, FItemHeight - 2);
+  end;
 end;
 
 procedure TzCustomObjInspector.WndProc(var Message: TMessage);
@@ -3069,7 +3142,8 @@ begin
     Value := FInspector.ValueManager.GetValue(FPropItem, vUInt);
     FInspector.DoSetValue(FPropItem, Value);
     Exit;
-  end else if Assigned(FList) then
+  end
+  else if Assigned(FList) then
   begin
     Index := FList.Items.IndexOf(s);
     if Index > -1 then
@@ -3077,7 +3151,9 @@ begin
       FList.Selected[Index] := True;
       DoSetValueFromList;
       Exit;
-    end else begin
+     end 
+    else 
+	begin
       if not FInspector.ValueManager.ValueHasOpenProbabilities(FPropItem) then
       begin
         raise InvalidPropValueError.CreateRes(@SInvalidPropValueErr);
@@ -3145,7 +3221,8 @@ begin
   if not FPropItem.EqualTo(Value) then
   begin
     FPropItem := Value;
-    PropInfoChanged;
+    if Assigned(Value) then
+      PropInfoChanged;
   end;
 end;
 
@@ -3159,13 +3236,14 @@ begin
   if FList.Items.Count = 0 then
     Exit;
   NewHeight := FList.ItemHeight * (FList.Items.Count) + 4;
-  P := Point(Left - FInspector.ValueManager.GetExtraRectWidth(PropInfo), Top + Height + 2);
+  // P := Point(Left - DefaultValueManager.GetExtraRectWidth(PropInfo), Top + Height + 2);
+  P := Point(FInspector.SplitterPos, Top + Height + 2);
   P := Parent.ClientToScreen(P);
   if (NewHeight + P.Y) >= Screen.Height then
     NewHeight := Screen.Height - P.Y - 50;
   FList.Height := NewHeight;
-  FList.Width := ClientWidth;
-
+  // FList.Width := ClientWidth + PropInspBtnWidth;
+  FList.Width := FInspector.ClientWidth - FInspector.SplitterPos;
   SetWindowPos(FList.Handle, HWND_TOP, P.X, P.Y, 0, 0, SWP_NOSIZE or SWP_NOACTIVATE or SWP_SHOWWINDOW);
 end;
 
@@ -3213,17 +3291,17 @@ end;
 procedure TzPropInspEdit.UpdateButton;
 begin
   FButton.Visible := False;
-  if (FInspector.FSelectedIndex < 0) or (FInspector.FSelectedIndex > FInspector.VisiblePropCount) then
+  if (not Assigned(FPropItem)) or (FInspector.FSelectedIndex < 0) or (FInspector.FSelectedIndex > FInspector.VisiblePropCount) then
     Exit;
-  if not FPropItem^.Prop.IsWritable then
-    Exit;
+//  if not FPropItem^.Prop.IsWritable then
+//    Exit;
   if not FInspector.ValueManager.HasButton(PropInfo) then
     Exit;
   FButton.Parent := Self.Parent;
-  FButton.Left := Self.Parent.ClientWidth - 17;
+  FButton.Left := Self.Parent.ClientWidth - PropInspBtnWidth;
   FButton.Top := Top - 3;
   FButton.Height := FInspector.FItemHeight; // 17;
-  FButton.Width := 17;
+  FButton.Width := PropInspBtnWidth;
   FButton.Visible := True;
 end;
 
@@ -3410,6 +3488,7 @@ begin
     if IsWindowVisible(FList.Handle) then
       HideList;
   DoSetValueFromEdit;
+  FInspector.UnRegisterKeys;
 end;
 
 procedure TzPropInspEdit.WMLBUTTONDBLCLK(var Message: TWMLBUTTONDBLCLK);
@@ -3445,6 +3524,11 @@ begin
   inherited;
 end;
 
+procedure TzPropInspEdit.WMSETFOCUS(var Msg: TWMSetFocus);
+begin
+  inherited;
+  FInspector.RegisterKeys;
+end;
 { TzPropInspButton }
 
 constructor TzPropInspButton.Create(AOwner: TComponent);
@@ -3461,6 +3545,7 @@ var
   DC: HDC;
   R: TRect;
   OldFontStyles: TFontStyles;
+  OldPenColor: TColor;
 begin
   R := ClientRect;
 
@@ -3478,7 +3563,14 @@ begin
   LStyle.DrawElement(DC, LDetails, ClientRect);
   P := Point((Width div 2) - 2, (Height div 2) - 2);
   if FDropDown then
-    DrawArrow(Canvas, sdDown, P, 3)
+  begin
+    P := Point((Width div 2) - PropInspBtnArrowSize,
+      (Height div 2) - PropInspBtnArrowSize div 2);
+    OldPenColor := Canvas.Pen.Color;
+    Canvas.Pen.Color := LStyle.GetSystemColor(clWindowText);
+    DrawArrow(Canvas, sdDown, P, PropInspBtnArrowSize);
+    Canvas.Pen.Color := OldPenColor;
+  end
   else
   begin
     OldFontStyles := Canvas.Font.Style;
