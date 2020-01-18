@@ -3293,6 +3293,7 @@ begin
   FButton.Visible := False;
   if (not Assigned(FPropItem)) or (FInspector.FSelectedIndex < 0) or (FInspector.FSelectedIndex > FInspector.VisiblePropCount) then
     Exit;
+    // TS: causes crash
 //  if not FPropItem^.Prop.IsWritable then
 //    Exit;
   if not FInspector.ValueManager.HasButton(PropInfo) then
